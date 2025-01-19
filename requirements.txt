@@ -1,0 +1,15 @@
+# Dependencias
+fastapi
+uvicorn
+pandas
+pymongo
+scikit-learn
+numpy
+joblib
+chardet
+uvicorn
+python-multipart
+pyjwt
+python-dotenv
+bcrypt
+requests
