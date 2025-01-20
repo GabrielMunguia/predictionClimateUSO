@@ -1,5 +1,6 @@
 (
-    ()=>{
+    () => {
+
         function getIconForRainProbability(probabilidad) {
             const icons = {
                 0: '☀️',
@@ -8,10 +9,10 @@
                 3: '🌩️',
                 4: '❄️'
             }
-        
-           
+
+
             const probabilidadValue = parseFloat(probabilidad.replace('%', ''));
-            
+
             if (probabilidadValue === 0) {
                 return icons[0]; // Clear
             } else if (probabilidadValue > 0 && probabilidadValue <= 20) {
@@ -24,15 +25,15 @@
                 return icons[4]; // Snow
             }
         }
-        document.addEventListener('DOMContentLoaded', function () {
+        function load() {
             const apiUrl = 'http://127.0.0.1:8000/api/predict/';
-       
-            
+
+
             // Crear el contenedor principal con estilo moderno
             const weatherApp = document.createElement('div');
             weatherApp.style.cssText = `
                 background: linear-gradient(135deg, #4284DB, #3475C5);
-                max-width: 400px;
+                max-width: 100%;
                 margin: 20px auto;
                 border-radius: 25px;
                 padding: 20px;
@@ -40,7 +41,7 @@
                 font-family: Arial, sans-serif;
                 box-shadow: 0 10px 20px rgba(0,0,0,0.2);
             `;
-        
+
             // Sección principal del clima
             const mainWeather = document.createElement('div');
             mainWeather.style.cssText = `
@@ -48,7 +49,7 @@
                 padding: 20px 0;
                 border-bottom: 1px solid rgba(255,255,255,0.2);
             `;
-        
+
             // Temperatura actual
             const tempDisplay = document.createElement('h1');
             tempDisplay.style.cssText = `
@@ -57,7 +58,7 @@
                 font-weight: 300;
             `;
             tempDisplay.innerHTML = '28<span style="font-size: 40px;">°</span>';
-        
+
             // Detalles del clima
             const weatherDetails = document.createElement('div');
             weatherDetails.style.cssText = `
@@ -67,13 +68,13 @@
                 margin: 20px 0;
                 padding: 10px;
             `;
-        
+
             const details = [
                 { icon: '💧', value: '', label: 'Humedad' },
-                { icon: '🌪️', value: '', label: 'Radiacion solar' },
+                { icon: '🌧️', value: '', label: 'Probabilidad de lluvia' },
                 { icon: '🌡️', value: '', label: 'Presión' }
             ];
-        
+
             details.forEach(detail => {
                 const detailBox = document.createElement('div');
                 detailBox.style.cssText = `
@@ -89,7 +90,7 @@
                 `;
                 weatherDetails.appendChild(detailBox);
             });
-        
+
             // Pronóstico de días
             const forecast = document.createElement('div');
             forecast.style.cssText = `
@@ -120,51 +121,55 @@
                 e.preventDefault();
                 forecast.scrollLeft += e.deltaY;
             });
-        
-            
-   
-        
-        
+
+
+
+
+
             // Ensamblar todo
             mainWeather.appendChild(tempDisplay);
             weatherApp.appendChild(mainWeather);
             weatherApp.appendChild(weatherDetails);
             weatherApp.appendChild(forecast);
-        
+
             // Agregar al DOM
-            document.body.appendChild(weatherApp);
-        
+            const container = document.querySelector("#climapredict-uso")
+            container.innerHTML = ""
+
+            container.appendChild(weatherApp);
+
             // Fetch data from API
             fetch(apiUrl, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
-              
+
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.predicciones && data.predicciones.length > 0) {
-                    // Actualizar la temperatura actual
-                    tempDisplay.innerHTML = `${data.predicciones[0].temperatura_predicha}<span style="font-size: 40px;">°</span>`;
-                    // "humedad": 79,
-                    // "presion_atmosferica": 1014.1,
-                    //"radiacion_solar": 133.5
-        
-                    // Actualizar los detalles del Humedad, Viento y Presión
-                    details[0].value = `${data.predicciones[0].humedad}%`;
-                    details[1].value = `${data.predicciones[0].radiacion_solar} W/m²`;
-                    details[2].value = `${data.predicciones[0].presion_atmosferica} hPa`;
-        
-                    details.forEach((detail, index) => {
-                        weatherDetails.children[index].children[1].innerHTML = detail.value;
-                    });
-                  
-                    
-                    
-                    // Actualizar el pronóstico
-                    forecast.innerHTML = '';
-                    data.predicciones.forEach(prediction => {
-                        const dayForecast = document.createElement('div');
-                        dayForecast.style.cssText = `
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data)
+                    if (data.predicciones && data.predicciones.length > 0) {
+                        // Actualizar la temperatura actual
+                        tempDisplay.innerHTML = `${data.predicciones[0].temperatura_predicha}<span style="font-size: 40px;">°</span>`;
+                        // "humedad": 79,
+                        // "presion_atmosferica": 1014.1,
+                        //"radiacion_solar": 133.5
+
+                        // Actualizar los detalles del Humedad, Viento y Presión
+                        details[0].value = `${data.predicciones[0].humedad_predicha}%`;
+                        details[1].value = `${data.predicciones[0].probabilidad_lluvia} %`;
+                        details[2].value = `${data.predicciones[0].presion_predicha} hPa`;
+
+                        details.forEach((detail, index) => {
+                            weatherDetails.children[index].children[1].innerHTML = detail.value;
+                        });
+
+
+
+                        // Actualizar el pronóstico
+                        forecast.innerHTML = '';
+                        data.predicciones.forEach(prediction => {
+                            const dayForecast = document.createElement('div');
+                            dayForecast.style.cssText = `
                             display: inline-block;
                             text-align: center;
                             margin-right: 25px;
@@ -173,28 +178,29 @@
                             border-radius: 15px;
                             min-width: 60px;
                         `;
-                        
-                        //"2025-01-03"
-                        const date = new Date(prediction.fecha + 'T00:00:00'); // Añadimos una hora para asegurar la correcta interpretación de la fecha
-                       
-                        const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase();
-                        console.log({dayName,date ,prediction});
-                       
-                        
-                        dayForecast.innerHTML = `
+
+                            //"2025-01-03"
+                            const date = new Date(prediction.fecha + 'T00:00:00'); // Añadimos una hora para asegurar la correcta interpretación de la fecha
+
+                            const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase();
+
+
+
+                            dayForecast.innerHTML = `
                             <div style="font-size: 14px; margin-bottom: 8px;">${dayName}</div>
                             <div style="font-size: 24px; margin-bottom: 8px;">${getIconForRainProbability(prediction.probabilidad_lluvia)}</div>
                             <div style="font-size: 16px;">${prediction.temperatura_predicha}°</div>
                             <div style="font-size: 12px; opacity: 0.8;">${prediction.probabilidad_lluvia} lluvia</div>
                         `;
-                        forecast.appendChild(dayForecast);
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                weatherApp.innerHTML = '<p style="color: white; text-align: center;">Error al cargar los datos del clima</p>';
-            });
-        });
+                            forecast.appendChild(dayForecast);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    weatherApp.innerHTML = '<p style="color: white; text-align: center;">Error al cargar los datos del clima</p>';
+                });
+        };
+        load()
     }
 )()

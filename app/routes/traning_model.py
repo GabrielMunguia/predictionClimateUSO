@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File,Query,Depends
 from app.services.process_csv import CSVProcessorService
 from app.utils.model import traningModel
 import os
@@ -28,7 +28,7 @@ async def insert_data(file: UploadFile = File(...)):
         # Procesar el archivo con el servicio
         try:
           await product_service.process_csv(temp_file_path) 
-          traningModel()
+         # traningModel()
         except Exception as e:
             raise HTTPException(status_code=500, detail=e.args[0])
         
@@ -39,6 +39,27 @@ async def insert_data(file: UploadFile = File(...)):
 
     except Exception as e:
         #print erro
-        print("Hubo un error")
+        print(f"Hubo un error {str(e)} ")
         print(str(e))
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/list")
+async def list_data(
+    fecha_inicio: str = Query(None, description="Start date for filtering in 'YYYY-MM-DD HH:MM:SS' format"),
+    fecha_fin: str = Query(None, description="End date for filtering in 'YYYY-MM-DD HH:MM:SS' format"),
+    orden_fecha: str = Query(None, description="Order by date ('asc' or 'desc')"),
+    search: str = Query(None, description="Search term to filter across all fields"),
+    page: int = Query(1, ge=1, description="Page number for pagination (default 1)"),
+    page_size: int = Query(10, ge=1, le=100, description="Page size for pagination (default 10, max 100)"),
+    product_service: CSVProcessorService = Depends()
+):
+   
+    try:
+        # Call the service to fetch the records and return the result
+        return await product_service.listar_registros(
+            fecha_inicio, fecha_fin, orden_fecha, search, page, page_size
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print("Error listing records:", str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
