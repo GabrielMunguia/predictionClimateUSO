@@ -35,7 +35,7 @@ def parsear_csv(archivo_entrada):
     # Leer el archivo CSV especificando el delimitador correcto
     encoding=detectar_codificacion(archivo_entrada).get('encoding')
     print(encoding)
-    df = pd.read_csv(archivo_entrada, encoding=encoding, delimiter=';', on_bad_lines='skip')
+    df = pd.read_csv(archivo_entrada, encoding=encoding, delimiter=';', on_bad_lines='skip', header=0,  index_col=False)
     print(df.head())
     print(f'Número de columnas en el CSV: {df.shape[1]}')
     

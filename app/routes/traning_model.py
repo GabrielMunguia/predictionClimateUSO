@@ -28,7 +28,7 @@ async def insert_data(file: UploadFile = File(...)):
         # Procesar el archivo con el servicio
         try:
           await product_service.process_csv(temp_file_path) 
-         # traningModel()
+          traningModel()
         except Exception as e:
             raise HTTPException(status_code=500, detail=e.args[0])
         
@@ -63,3 +63,14 @@ async def list_data(
     except Exception as e:
         print("Error listing records:", str(e))
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@router.get("/")
+
+async def training():
+    try:
+        traningModel()
+        return {"message": "Model trained successfully", "status": "ok"}
+    except Exception as e:
+        print(f"Hubo un error {str(e)} ")
+        print(str(e))
+        raise HTTPException(status_code=500, detail=str(e))

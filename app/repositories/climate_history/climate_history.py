@@ -76,7 +76,7 @@ async def insertar_datos_clima_db(archivo_entrada):
         except Exception as e:
             # Manejar errores en el procesamiento de filas
             invalidos += 1
-            print(f"Error al procesar la fila {index}: {e}")
+           # print(f"Error al procesar la fila {index}: {e}")
 
     # Imprimir el resumen de validaciones
     print(f"Documentos válidos: {validos}")
@@ -120,7 +120,7 @@ async def listar_registros(fecha_inicio=None, fecha_fin=None, orden_fecha=None, 
         query["fecha"]["$lte"] = pd.to_datetime(fecha_fin)
 
     if search:
-        query["$text"] = {"$search": search}
+        query["fecha"] = {"$search": search}
 
     print("Consulta generada:", query)  # Depuración
 
