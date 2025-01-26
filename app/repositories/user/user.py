@@ -233,6 +233,10 @@ def delete_user(user_id):
     user = db.users.find_one({"_id": obj_id})
     if not user:
         raise ValueError("No se encontró un usuario con ese ID")
+    
+    #Validar que haya mas de un usuario en la base de datos
+    if db.users.count_documents({}) == 1:
+        raise ValueError("No se puede eliminar el único usuario en la base de datos")
 
     # Eliminar el usuario
     result = db.users.delete_one({"_id": obj_id})

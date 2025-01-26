@@ -41,10 +41,10 @@ async def predecir_7_dias():
         # 2025-01-11 en la DB. 
         # Aquí, a modo de ejemplo, inicializamos manualmente:
         current_lag = {
-            "temp_lag1": 29.0,
-            "hum_lag1": 45.0,
-            "pres_lag1": 1009.8,
-            "rad_lag1": 717.5,
+            "temp_lag1": 24.7,
+            "hum_lag1": 52.0,
+            "pres_lag1": 1014.2,
+            "rad_lag1": 620.8,
             "lluvia_lag1": 0
         }
 
