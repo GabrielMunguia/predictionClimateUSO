@@ -8,6 +8,7 @@ from sklearn.metrics import mean_squared_error, classification_report
 import joblib
 
 def traningModel():
+    print("Entrenando modelo.....")
     # 1. Conexión a MongoDB
     client = pymongo.MongoClient("mongodb://localhost:27017/")
     db = client["tesis"]

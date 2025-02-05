@@ -104,6 +104,7 @@ class UserService:
       
 
         new_password = self._generate_random_password(6)
+   
         
         # Actualizar la contraseña en la base de datos
         update_user_password(user_id, new_password)

@@ -28,7 +28,7 @@ async def insert_data(file: UploadFile = File(...)):
         # Procesar el archivo con el servicio
         try:
           await product_service.process_csv(temp_file_path) 
-          traningModel()
+         # traningModel()
         except Exception as e:
             raise HTTPException(status_code=500, detail=e.args[0])
         
