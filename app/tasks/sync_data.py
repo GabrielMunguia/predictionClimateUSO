@@ -18,7 +18,7 @@ def getConexionMongo():
     return db
 # Configurar Selenium
 def syncDataWeather():
-    
+  print("holaxxxxxxxxxxxxxx")
   options = webdriver.ChromeOptions()
  # options.add_argument("--headless")  # Eliminar esta línea si quieres ver el proceso
   driver = webdriver.Chrome(options=options)
