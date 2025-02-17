@@ -18,9 +18,9 @@ def getConexionMongo():
     return db
 # Configurar Selenium
 def syncDataWeather():
-  print("holaxxxxxxxxxxxxxx")
+  print("sync")
   options = webdriver.ChromeOptions()
- # options.add_argument("--headless")  # Eliminar esta línea si quieres ver el proceso
+  #options.add_argument("--headless")  # Eliminar esta línea si quieres ver el proceso
   driver = webdriver.Chrome(options=options)
   
   # URL de Weathercloud
@@ -157,9 +157,9 @@ def syncDataWeather():
       # Guardar en un archivo CSV
       csv_filename = f"weather_data_{device_name.replace(' ', '_')}.csv"
     #  pd.DataFrame(data).to_csv(csv_filename, index=False)
-      traningModel()
+      
       print(f"✅ Datos guardados en {csv_filename}")
   
   # Cerrar el navegador
+  traningModel()
   driver.quit()
-  
