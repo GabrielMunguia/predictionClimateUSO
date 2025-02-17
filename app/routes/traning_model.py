@@ -3,6 +3,7 @@ from app.services.process_csv import CSVProcessorService
 from app.utils.model import traningModel
 import os
 import tempfile
+from app.security.jwt_handler import get_current_user
 
 router = APIRouter(prefix="/api/traning")
 
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/api/traning")
 product_service = CSVProcessorService()
 
 @router.post("/")
-async def insert_data(file: UploadFile = File(...)):
+async def insert_data(file: UploadFile = File(...),user: dict = Depends(get_current_user)):
     try:
         # Obtener el nombre del archivo y su extensión
         filename = file.filename
