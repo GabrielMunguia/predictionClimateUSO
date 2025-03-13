@@ -16,9 +16,33 @@ def getConexionMongo():
     cliente = pymongo.MongoClient(host, puerto)
     db = cliente[base_de_datos]
     return db
+
+def existe_registro(collection, fecha, dispositivo):
+    """
+    Verifica si un registro ya existe en la base de datos.
+
+    Parámetros:
+        collection: pymongo.Collection - La colección de MongoDB donde buscar.
+        fecha: datetime - La fecha del registro.
+        dispositivo: str - El nombre del dispositivo.
+
+    Retorna:
+        bool: True si el registro existe, False si no existe.
+    """
+    if not fecha or not dispositivo:
+        return True  # Evita insertar registros con valores nulos
+
+    existing_record = collection.find_one({
+        "fecha": fecha,
+        "dispositivo": dispositivo
+    })
+
+    return existing_record is not None  # Retorna True si ya existe, False si no.
+
 # Configurar Selenium
 def syncDataWeather():
-  print("sync")
+  print("sync data")
+
   options = webdriver.ChromeOptions()
   #options.add_argument("--headless")  # Eliminar esta línea si quieres ver el proceso
   driver = webdriver.Chrome(options=options)
@@ -94,7 +118,7 @@ def syncDataWeather():
   
       # Obtener todas las opciones del select
       options = [option.get_attribute("value") for option in dropdown.options]
-      print("Opciones disponibles en el select:", options)
+      #print("Opciones disponibles en el select:", options)
   
       # Verificar si el día actual está en la lista de valores disponibles
       if current_day in options:
@@ -129,7 +153,7 @@ def syncDataWeather():
        cols = row.find_elements(By.TAG_NAME, "td")
        row_data = [col.text.strip() if col.text.strip() else None for col in cols]
   
-       print(f"Antes de convertir: {row_data}")  # 🔍 Ver valores antes de convertir
+    
        if len(row_data) != len(columns):
         print(f"⚠️ Desajuste de columnas: Se esperaban {len(columns)} columnas, pero se encontraron {len(row_data)}")
         continue  # Saltar esta fila si no coincide la cantidad de columnas
@@ -139,27 +163,31 @@ def syncDataWeather():
         for i, value in enumerate(row_data)
        }
   
-       print(f"Después de convertir: {parsed_row}")  # 🔍 Ver valores después de convertir
+      
   
        if all(parsed_row.get(campo) is not None for campo in campos_requeridos): 
            parsed_row['fecha'] = datetime.strptime(f"{datetime.now().year}-{datetime.now().month:02d}-{current_day} {parsed_row['fecha']}:00", "%Y-%m-%d %H:%M:%S")
            parsed_row['dispositivo'] = device_name
-           data.append(parsed_row)
+       # ✅ Verificar si el registro ya existe antes de agregarlo
+           if not existe_registro(collection, parsed_row['fecha'], parsed_row['dispositivo']):
+               data.append(parsed_row)
+           else:
+            print(f"⚠️ Registro ya existente: {parsed_row['dispositivo']} - {parsed_row['fecha']}")
+              
+           
        else:
-          print(f"❌ Registro no válido, faltan campos requeridos o tienen valores vacíos: {parsed_row}")
+          print(f"❌ Registro no válido")
   
   
       # Guardar en MongoDB si hay datos válidos
       if data:
           collection.insert_many(data)
           print(f"✅ {len(data)} registros guardados en MongoDB para {device_name}")
+      else:
+         print('no hay datos para guardar')
   
-      # Guardar en un archivo CSV
-      csv_filename = f"weather_data_{device_name.replace(' ', '_')}.csv"
-    #  pd.DataFrame(data).to_csv(csv_filename, index=False)
-      
-      print(f"✅ Datos guardados en {csv_filename}")
+
   
   # Cerrar el navegador
-  traningModel()
+  #traningModel()
   driver.quit()

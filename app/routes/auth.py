@@ -10,7 +10,8 @@ router = APIRouter(prefix="/api/auth")
 user_service = UserService()
 
 # Modelos de Pydantic
-
+class EmailRequest(BaseModel):
+    email: str
 class RegisterUserRequest(BaseModel):
     username: EmailStr
    
@@ -61,27 +62,17 @@ def list_users_endpoint(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/users/{user_id}/email")
-def update_user_email_endpoint(user_id: str, request: UpdateEmailRequest):
-    """
-    Actualiza el email de un usuario, validando que sea único.
-    """
-    try:
-        result = user_service.update_email(user_id, request.new_email)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.put("/users/{user_id}/send-new-password")
-def send_new_password_endpoint(user_id: str):
+@router.put("/users/send-new-password")
+def send_new_password_endpoint(request: EmailRequest):
     """
     Genera y envía una nueva contraseña a un usuario específico.
     """
     try:
-        result = user_service.send_new_password(user_id)
+        result = user_service.send_new_password(request.email)
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
 
 @router.put("/users/{user_id}")
 def edit_user_endpoint(user_id: str, request: UpdateUserRequest):

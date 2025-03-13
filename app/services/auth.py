@@ -86,31 +86,29 @@ class UserService:
         """
         return update_user_email(user_id, new_email)
 
-    def send_new_password(self, user_id: str) -> dict:
+    def send_new_password(self, username: str) -> dict:
         """
         Genera automáticamente una nueva contraseña de 6 caracteres alfanuméricos, 
         la actualiza para el usuario y envía un correo con esa nueva contraseña.
 
-        :param user_id: ID del usuario (cadena en formato ObjectId)
+        :param username: Nombre de usuario
         :return: Diccionario con el resultado de la operación
         """
         db = getConexionMongo()
 
-        # Verificar si el usuario existe y obtener su email
-        user_obj_id = ObjectId(user_id)
-        user = db.users.find_one({"_id": user_obj_id}, {"username": 1})
+        # Verificar si el usuario existe y obtener su ID
+        user = db.users.find_one({"username": username}, {"_id": 1})
         if not user:
             return {"status": "error", "message": "Usuario no encontrado."}
-      
 
+        user_id = str(user["_id"])
         new_password = self._generate_random_password(6)
-   
-        
+
         # Actualizar la contraseña en la base de datos
         update_user_password(user_id, new_password)
-        print(user)
+
         # Enviar el correo con la nueva contraseña
-        self._send_email(user["username"], new_password)
+        self._send_email(username, new_password)
 
         return {
             "status": "success",

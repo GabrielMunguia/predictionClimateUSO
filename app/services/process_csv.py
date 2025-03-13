@@ -1,7 +1,7 @@
 from app.utils.parser_csv import parsear_csv
 import pandas as pd
 
-from app.repositories.climate_history.climate_history import insertar_datos_clima_db,listar_registros
+from app.repositories.climate_history.climate_history import insertar_datos_clima_db,listar_registros,eliminar_registros
 class CSVProcessorService:
       async def process_csv(self, archivo_entrada):
       
@@ -22,3 +22,15 @@ class CSVProcessorService:
         :return: Diccionario con registros, página actual, páginas restantes y total de registros.
         """
         return listar_registros(fecha_inicio, fecha_fin, orden_fecha, search, page, page_size)
+      
+      ##Eliminar registros por rango de fechas
+      def eliminar(self, fecha_inicio, fecha_fin):
+        """
+        Elimina registros de la base de datos en un rango de fechas.
+
+        :param fecha_inicio: Fecha de inicio para filtrar.
+        :param fecha_fin: Fecha de finalización para filtrar.
+        :return: True si se eliminaron registros, False si no se eliminaron.
+        """
+        return eliminar_registros(fecha_inicio, fecha_fin)
+      

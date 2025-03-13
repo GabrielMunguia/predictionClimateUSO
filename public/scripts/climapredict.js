@@ -57,7 +57,7 @@
                 margin: 0;
                 font-weight: 300;
             `;
-            tempDisplay.innerHTML = '28<span style="font-size: 40px;">°</span>';
+            tempDisplay.innerHTML = '<span style="font-size: 40px;">°</span>';
 
             // Detalles del clima
             const weatherDetails = document.createElement('div');

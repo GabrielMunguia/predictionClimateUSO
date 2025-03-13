@@ -38,8 +38,8 @@ def traningModel():
     # Elimina filas con nulos en las columnas críticas
     data.dropna(subset=["temperatura", "humedad", "presion_atmosferica", "radiacion_solar", "lluvia"], inplace=True)
 
-    # Binarizar lluvia si viene en mm
-    data["lluvia"] = (data["lluvia"] > 0).astype(int)
+  
+    data["lluvia"] = data["lluvia"] 
 
     # 5. Crear las columnas de rezago (lag de 1 día)
     #    Para cada variable que quieras predecir, haz un shift(1)

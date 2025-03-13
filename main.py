@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 from app.tasks.sync_data import syncDataWeather  # Asegúrate de importar tu función correctamente
-
+from app.utils.model import traningModel
 app = FastAPI(title='Api de clima', version='0.1')
 # Incluir las rutas del router
 app.include_router(router)
@@ -36,9 +36,11 @@ def read_root():
 # Crear un scheduler en segundo plano
 scheduler = BackgroundScheduler()
 
-# Programar el cron job para que se ejecute todos los días a las 11:30 PM
-#scheduler.add_job(syncDataWeather, "cron", hour=23, minute=30)
-scheduler.add_job(syncDataWeather, "interval", seconds=30)  # Cada 30 segundos
+# Programar el cron job para que se ejecute todos los días a las 11:30 PM , Este metodo reentrenara el modelo cada dia
+scheduler.add_job(traningModel, "cron", hour=23, minute=30)
+# Ejecutar `syncDataWeather` cada 10 minutos , actualizar los registros cada 10 minutos
+scheduler.add_job(syncDataWeather, "interval", minutes=10)
+syncDataWeather()
 
 # Iniciar el scheduler
 scheduler.start()

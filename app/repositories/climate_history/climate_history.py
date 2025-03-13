@@ -169,5 +169,40 @@ async def listar_registros(fecha_inicio=None, fecha_fin=None, orden_fecha=None, 
         }
     }
 
+
+##Eliminar registros por rango de fechas
+async def eliminar_registros(fecha_inicio=None, fecha_fin=None):
+    """
+    Elimina registros desde MongoDB con filtros de fecha.
+
+    :param fecha_inicio: Fecha de inicio para filtrar (opcional).
+    :param fecha_fin: Fecha de finalización para filtrar (opcional).
+    :return: Número de registros eliminados.
+    """
+    db = getConexionMongo()
+    collection = db['history2']
+
+    # Construir la consulta de filtro
+    query = {}
+    if fecha_inicio:
+        query["fecha"] = {"$gte": pd.to_datetime(fecha_inicio)}
+    if fecha_fin:
+        query["fecha"] = query.get("fecha", {})
+        query["fecha"]["$lte"] = pd.to_datetime(fecha_fin)
+
+    print("Consulta generada:", query)  # Depuración
+
+    # Eliminar documentos
+    resultado = collection.delete_many(query)
+
+    return {
+        "status":True,
+        "message":"exito",
+        "statusCode":200,
+        "result":{
+            "deletedCount":resultado.deleted_count
+        }
+    }
+
    
 

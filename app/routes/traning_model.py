@@ -51,6 +51,7 @@ async def list_data(
     search: str = Query(None, description="Search term to filter across all fields"),
     page: int = Query(1, ge=1, description="Page number for pagination (default 1)"),
     page_size: int = Query(10, ge=1, le=100, description="Page size for pagination (default 10, max 100)"),
+    user: dict = Depends(get_current_user),
     product_service: CSVProcessorService = Depends()
 ):
    
@@ -65,9 +66,24 @@ async def list_data(
         print("Error listing records:", str(e))
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+@router.delete("/")
+async def delete_data(
+    fecha_inicio: str = Query(..., description="Start date for filtering in 'YYYY-MM-DD HH:MM:SS' format"),
+    fecha_fin: str = Query(..., description="End date for filtering in 'YYYY-MM-DD HH:MM:SS' format"),
+    user: dict = Depends(get_current_user),
+    product_service: CSVProcessorService = Depends()
+):
+    try:
+        # Call the service to delete the records and return the result
+        return await product_service.eliminar(fecha_inicio, fecha_fin)
+    except Exception as e:
+        print("Error deleting records:", str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
 @router.get("/")
 
-async def training():
+async def training( user: dict = Depends(get_current_user)):
     try:
         traningModel()
         return {"message": "Model trained successfully", "status": "ok"}
