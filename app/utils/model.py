@@ -1,149 +1,147 @@
 import pymongo
 import pandas as pd
 import numpy as np
+import joblib
+from tqdm import tqdm
 
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_squared_error, classification_report
-import joblib
 
-def traningModel():
-    print("Entrenando modelo.....")
-    # 1. Conexión a MongoDB
-    client = pymongo.MongoClient("mongodb://localhost:27017/")
-    db = client["tesis"]
-    collection = db["history2"]
-    
-    # 2. Cargar datos en DataFrame
-    data = pd.DataFrame(list(collection.find()))
-    if data.empty:
-        print("Error: No se encontraron datos en la colección 'history2'.")
-        return
+# Parámetro para definir cuántos días de historial usar
+N_DAYS = 100
 
-    # 3. Convertir 'fecha' a tipo datetime y ordenar por fecha
+# Conexión a MongoDB
+def load_data_from_mongo():
+    try:
+        client = pymongo.MongoClient("mongodb://localhost:27017/")
+        db = client["tesis"]
+        collection = db["history2"]
+        data = pd.DataFrame(list(collection.find()))
+        
+        if data.empty:
+            raise ValueError("No se encontraron datos en la colección 'history2'.")
+        return data
+    except Exception as e:
+        print(f"Error al cargar datos de MongoDB: {e}")
+        return None
+
+# Preprocesamiento de datos
+def preprocess_data(data):
+    print("Preprocesando datos...")
+
+    # Convertir 'fecha' a datetime y ordenar
     data["fecha"] = pd.to_datetime(data["fecha"], errors='coerce')
     data.sort_values(by="fecha", inplace=True)
 
-    # 4. Mantener solo las columnas relevantes (asegúrate de que existan)
-    required_columns = [
-        "fecha",
-        "temperatura",
-        "humedad",
-        "presion_atmosferica",
-        "radiacion_solar",
-        "lluvia"
-    ]
-    data = data[[c for c in required_columns if c in data.columns]]
+    # Selección de columnas relevantes
+    required_columns = {"fecha", "temperatura", "humedad", "presion_atmosferica", "radiacion_solar", "lluvia"}
+    available_columns = set(data.columns)
+    missing_columns = required_columns - available_columns
 
-    # Elimina filas con nulos en las columnas críticas
-    data.dropna(subset=["temperatura", "humedad", "presion_atmosferica", "radiacion_solar", "lluvia"], inplace=True)
+    if missing_columns:
+        raise ValueError(f"Faltan columnas en los datos: {missing_columns}")
 
-  
-    data["lluvia"] = data["lluvia"] 
+    data = data[list(required_columns)].copy()
+    data.dropna(subset=required_columns - {"fecha"}, inplace=True)
 
-    # 5. Crear las columnas de rezago (lag de 1 día)
-    #    Para cada variable que quieras predecir, haz un shift(1)
-    data["temp_lag1"] = data["temperatura"].shift(1)
-    data["hum_lag1"]  = data["humedad"].shift(1)
-    data["pres_lag1"] = data["presion_atmosferica"].shift(1)
-    data["rad_lag1"]  = data["radiacion_solar"].shift(1)
-    data["lluvia_lag1"] = data["lluvia"].shift(1)  # Para el modelo de lluvia
+    # Convertir lluvia a variable binaria
+    data["lluvia"] = (data["lluvia"] > 0).astype(int)
 
-    # 6. Crear las variables “target” a predecir para el día d
-    #    (opcionalmente, podrías predecir el día d+1 haciendo shift(-1), 
-    #     pero en este ejemplo predecimos el día d a partir del d-1).
-    #    *Si quieres EXACTAMENTE "hoy" <- "ayer", dejas así.
-    #    *Si prefieres "mañana" <- "hoy", usas shift(-1) en los targets.
-    #    Aquí haré: Y[d] <- X[d-1].
-    #    Por lo tanto, X estará en filas “d” pero con info de “d-1”.
-    #    Y estará en filas “d” con su propia info (temperatura del día d).
-    #    => Eliminamos la primera fila (porque lag1 es NaN).
-    
-    # 7. Variables cíclicas del DIA (para el día d real)
+    # Generar los últimos 100 días de historial
+    max_lag = N_DAYS
+    lagged_data = {}  # Diccionario para almacenar los lags
+
+    for lag in tqdm(range(1, max_lag + 1), desc="Generando lags"):
+
+        for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar", "lluvia"]:
+            lagged_data[f"{col}_lag{lag}"] = data[col].shift(lag)
+
+    # Unir todas las columnas de lags con el dataframe original
+    lagged_df = pd.DataFrame(lagged_data, index=data.index)
+    data = pd.concat([data, lagged_df], axis=1)
+
+    # Variables cíclicas del día
     data["day_of_year"] = data["fecha"].dt.dayofyear
     data["sin_dayofyear"] = np.sin(2 * np.pi * data["day_of_year"] / 365)
     data["cos_dayofyear"] = np.cos(2 * np.pi * data["day_of_year"] / 365)
 
-    # Ahora, eliminamos las primeras filas que tengan NaN en lags
-    data.dropna(subset=["temp_lag1", "hum_lag1", "pres_lag1", "rad_lag1"], inplace=True)
+    # Eliminar filas con NaN generados por los lags
+    data.dropna(inplace=True)
 
-    # 8. Definir features (X) y targets (Y)
-    #    - X: valores del día (d-1) + sin/cos del día actual (d)
-    #    - Y: valores del día actual (d)
-    
-    # Features para REGRESIÓN
-    # (para predecir temp, humedad, pres, radiación del día d)
-    regression_features = [
-        "temp_lag1",
-        "hum_lag1",
-        "pres_lag1",
-        "rad_lag1",
-        "sin_dayofyear",
-        "cos_dayofyear"
-    ]
-    # Target (OUTPUT) en la parte de regresión
-    regression_targets = [
-        "temperatura",
-        "humedad",
-        "presion_atmosferica",
-        "radiacion_solar"
-    ]
+    return data
 
-    X_reg = data[regression_features].copy()
-    Y_reg = data[regression_targets].copy()
 
-    # Features para CLASIFICACIÓN (lluvia)
-    classification_features = [
-        "temp_lag1",
-        "hum_lag1",
-        "pres_lag1",
-        "rad_lag1",
-        "sin_dayofyear",
-        "cos_dayofyear",
-        "lluvia_lag1"  # Quizá quieras también la lluvia del día anterior
-    ]
-    X_clf = data[classification_features].copy()
-    Y_clf = data["lluvia"].copy()
-
-    # 9. Partir en train/test (ejemplo: 80/20)
+# División en train/test
+def split_data(data):
     train_size = int(len(data) * 0.8)
 
-    X_reg_train, X_reg_test = X_reg.iloc[:train_size], X_reg.iloc[train_size:]
-    Y_reg_train, Y_reg_test = Y_reg.iloc[:train_size], Y_reg.iloc[train_size:]
+    feature_columns = [f"{col}_lag{lag}" for lag in range(1, N_DAYS + 1) for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]]
+    feature_columns += ["sin_dayofyear", "cos_dayofyear"]
+    target_columns = ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]
+    
+    X_reg_train, X_reg_test = data[feature_columns][:train_size], data[feature_columns][train_size:]
+    Y_reg_train, Y_reg_test = data[target_columns][:train_size], data[target_columns][train_size:]
+    
+    feature_columns_clf = feature_columns + [f"lluvia_lag{lag}" for lag in range(1, N_DAYS + 1)]
+    X_clf_train, X_clf_test = data[feature_columns_clf][:train_size], data[feature_columns_clf][train_size:]
+    Y_clf_train, Y_clf_test = data["lluvia"][:train_size], data["lluvia"][train_size:]
 
-    X_clf_train, X_clf_test = X_clf.iloc[:train_size], X_clf.iloc[train_size:]
-    Y_clf_train, Y_clf_test = Y_clf.iloc[:train_size], Y_clf.iloc[train_size:]
+    return X_reg_train, X_reg_test, Y_reg_train, Y_reg_test, X_clf_train, X_clf_test, Y_clf_train, Y_clf_test
 
-    # 10. Entrenar modelo de regresión (multi-output)
-    regressor = MultiOutputRegressor(
-        RandomForestRegressor(
-            n_estimators=100,
-            random_state=42
-        )
-    )
+# Entrenamiento de modelos
+def train_models(X_reg_train, Y_reg_train, X_clf_train, Y_clf_train):
+    print("Entrenando modelos...")
+    
+    regressor = MultiOutputRegressor(RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1))
     regressor.fit(X_reg_train, Y_reg_train)
+    
+    classifier = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+    classifier.fit(X_clf_train, Y_clf_train)
+    
+    return regressor, classifier
 
-    # Métrica
+# Evaluación de modelos
+def evaluate_models(regressor, X_reg_test, Y_reg_test, classifier, X_clf_test, Y_clf_test):
+    print("\nEvaluando modelos...")
+    
     reg_preds = regressor.predict(X_reg_test)
     mse_vals = mean_squared_error(Y_reg_test, reg_preds, multioutput='raw_values')
-    print("MSE (Regresión) en test:")
-    for i, col in enumerate(regression_targets):
-        print(f"  {col}: {mse_vals[i]:.2f}")
-
-    # 11. Entrenar modelo de clasificación para lluvia
-    classifier = RandomForestClassifier(
-        n_estimators=100,
-        random_state=42
-    )
-    classifier.fit(X_clf_train, Y_clf_train)
-
+    
+    print("\nMSE (Regresión) en test:")
+    for col, mse in zip(Y_reg_test.columns, mse_vals):
+        print(f"  {col}: {mse:.2f}")
+    
     clf_preds = classifier.predict(X_clf_test)
-    print("\nReporte clasificación (test):")
+    print("\nReporte de clasificación (lluvia):")
     print(classification_report(Y_clf_test, clf_preds))
 
-    # 12. Guardar modelos
+# Guardado de modelos
+def save_models(regressor, classifier):
     joblib.dump(regressor, "modelo_clima_regresion.pkl")
     joblib.dump(classifier, "modelo_clima_clasificacion.pkl")
-    print("\n¡Modelos de serie de tiempo entrenados y guardados exitosamente!")
+    print("\n¡Modelos guardados exitosamente!")
 
-    return regressor, classifier
+# Función principal
+def traningModel():
+    print("Iniciando entrenamiento del modelo...")
+
+    data = load_data_from_mongo()
+    if data is None:
+        return
+    
+    try:
+        data = preprocess_data(data)
+        X_reg_train, X_reg_test, Y_reg_train, Y_reg_test, X_clf_train, X_clf_test, Y_clf_train, Y_clf_test = split_data(data)
+        
+        regressor, classifier = train_models(X_reg_train, Y_reg_train, X_clf_train, Y_clf_train)
+        evaluate_models(regressor, X_reg_test, Y_reg_test, classifier, X_clf_test, Y_clf_test)
+        save_models(regressor, classifier)
+        
+        print("\n¡Entrenamiento finalizado con éxito!")
+        return regressor, classifier
+    except Exception as e:
+        print(f"Error en el proceso de entrenamiento: {e}")
+
+# Llamar a la función principal
+#traningModel()

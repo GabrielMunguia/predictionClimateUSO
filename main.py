@@ -37,11 +37,11 @@ def read_root():
 scheduler = BackgroundScheduler()
 
 # Programar el cron job para que se ejecute todos los días a las 11:30 PM , Este metodo reentrenara el modelo cada dia
-scheduler.add_job(traningModel, "cron", hour=23, minute=30)
+#scheduler.add_job(traningModel, "cron", hour=23, minute=30)
 # Ejecutar `syncDataWeather` cada 10 minutos , actualizar los registros cada 10 minutos
 scheduler.add_job(syncDataWeather, "interval", minutes=10)
-syncDataWeather()
-
+#syncDataWeather()
+#traningModel()
 # Iniciar el scheduler
 scheduler.start()
 

@@ -16,3 +16,5 @@ requests
 email-validator
 selenium
 apscheduler
+tqdm
+cachetools
