@@ -41,7 +41,7 @@ scheduler = BackgroundScheduler()
 # Ejecutar `syncDataWeather` cada 10 minutos , actualizar los registros cada 10 minutos
 scheduler.add_job(syncDataWeather, "interval", minutes=10)
 #syncDataWeather()
-#traningModel()
+traningModel()
 # Iniciar el scheduler
 scheduler.start()
 
