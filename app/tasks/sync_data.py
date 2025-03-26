@@ -44,7 +44,7 @@ def syncDataWeather():
   print("sync data")
 
   options = webdriver.ChromeOptions()
-  options.add_argument("--headless")  # Eliminar esta línea si quieres ver el proceso
+  #options.add_argument("--headless")  # Eliminar esta línea si quieres ver el proceso
   driver = webdriver.Chrome(options=options)
   
   # URL de Weathercloud

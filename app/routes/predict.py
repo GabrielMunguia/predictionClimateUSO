@@ -19,8 +19,8 @@ client = pymongo.MongoClient("mongodb://localhost:27017/")
 db = client["tesis"]
 collection = db["history2"]
 
-cache = TTLCache(maxsize=1, ttl=86400)
-cache_predictions = TTLCache(maxsize=1, ttl=3600)
+cache = TTLCache(maxsize=1, ttl=86400) #24 horas
+cache_predictions = TTLCache(maxsize=1, ttl=3600)#1Hora
 
 def load_models():
     global model_reg, model_clf, reg_columns, clf_columns
@@ -84,6 +84,7 @@ async def predecir_7_dias():
                 for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar", "lluvia"]:
                     lagged_data[f"{col}_lag{lag}"] = df_history[col].shift(lag).iloc[-1]
 
+            #Generar variables mobiles
             for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]:
                 df_history[f"{col}_rolling_30"] = df_history[col].rolling(window=30, min_periods=1).mean()
                 df_history[f"{col}_rolling_90"] = df_history[col].rolling(window=90, min_periods=1).mean()

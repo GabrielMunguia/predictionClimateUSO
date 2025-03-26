@@ -31,53 +31,79 @@ def load_data_from_mongo():
         return None
 
 # Preprocesamiento de datos
-# preprocess_data: Realiza una serie de pasos para preparar los datos:
-# Convierte la columna fecha a formato datetime y ordena los datos por fecha.
-# Verifica que las columnas necesarias estén presentes y limpia los datos.
-# Convierte la variable lluvia en una variable binaria.
-# Genera las características lag para cada variable relevante.
-# Agrega variables cíclicas del día del año (sin y cos).
-# Calcula promedios móviles para variables clave.
-# Elimina cualquier fila con valores faltantes generados por los lags o promedios móviles.
+
 def preprocess_data(data):
     print("Preprocesando datos...")
 
     # Convertir 'fecha' a datetime y ordenar
-    data["fecha"] = pd.to_datetime(data["fecha"], errors='coerce')
-    data.sort_values(by="fecha", inplace=True)
+    data["fecha"] = pd.to_datetime(data["fecha"], errors='coerce') #Cource asegura que las fe chas no validas se conviertan en Nat(No es una fecha en ingles)
+
+    data.sort_values(by="fecha", inplace=True) #Ordenamos
 
     # Selección de columnas relevantes
     required_columns = {"fecha", "temperatura", "humedad", "presion_atmosferica", "radiacion_solar", "lluvia"}
-    available_columns = set(data.columns)
-    missing_columns = required_columns - available_columns
+    available_columns = set(data.columns) #Se comparan las columnas requeridas con el conjunto de datos
+    missing_columns = required_columns - available_columns #Si esto es verdadero es por que faltan datos
 
     if missing_columns:
         raise ValueError(f"Faltan columnas en los datos: {missing_columns}")
 
-    data = data[list(required_columns)].copy()
-    data.dropna(subset=required_columns - {"fecha"}, inplace=True)
+    data = data[list(required_columns)].copy() #Creamos un DataFrame que solo contiene un conjunto de datos
+    data.dropna(subset=required_columns - {"fecha"}, inplace=True) #En este punto eliminamos las filas que tengan NaN en  las columas requeridas exepto fecha
 
     # Convertir lluvia a variable binaria
-    data["lluvia"] = (data["lluvia"] > 0).astype(int)
+    data["lluvia"] = (data["lluvia"] > 0).astype(int) # Se convirtio en binaria para tener de una manera sencilla si hubo o no lluvia un dia
+
 
     # Generar los lags para todos los datos disponibles
-    max_lag = MAX_LAGS 
-    lagged_data = {}
+    max_lag = MAX_LAGS  #Cantidad maxima de lags
+    lagged_data = {}  #Diccionario para almacenar las columas de lags 
 
+
+
+
+#************CREACION DE LAGS ******************
+#Tdqm es la libreria para mostrar la barra de progreso
+#range = rango de numeros desde 1 hasta el max lag
     for lag in tqdm(range(1, max_lag + 1), desc="Generando lags"):
+        #Recorremos cada una de las columnas relevantes
         for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar", "lluvia"]:
             lagged_data[f"{col}_lag{lag}"] = data[col].shift(lag)
 
+
+#Ejemplo de salida
+# fecha	temperatura
+# 2025-01-01	25°C
+# 2025-01-02	26°C
+# 2025-01-03	27°C
+# lagged_data = {
+#     'temperatura_lag1': [NaN, 25, 26],
+#     'temperatura_lag2': [NaN, NaN, 25]
+# }
+
+#******************************
     # Unir todas las columnas de lags con el dataframe original
+    #Los lags nos ayudan a generar valores de tendencia
     lagged_df = pd.DataFrame(lagged_data, index=data.index)
     data = pd.concat([data, lagged_df], axis=1)
 
     # Variables cíclicas del día
-    data["day_of_year"] = data["fecha"].dt.dayofyear
-    data["sin_dayofyear"] = np.sin(2 * np.pi * data["day_of_year"] / 365)
-    data["cos_dayofyear"] = np.cos(2 * np.pi * data["day_of_year"] / 365)
+    #Esto lo haremos para representar la estacionalidad de forma ciclica , por ejemplo
+    #para que el modelo entienda que el 1 de enero y el 31 de dicembre solo estan a un dia de distancia
+    data["day_of_year"] = data["fecha"].dt.dayofyear #Extraemos el dia del año de la fecha del 1- 365
+    data["sin_dayofyear"] = np.sin(2 * np.pi * data["day_of_year"] / 365)#Sacamos el seno 
+    data["cos_dayofyear"] = np.cos(2 * np.pi * data["day_of_year"] / 365)#Sacamos el coceno
 
     # Calcular promedios móviles
+    #Los van a aayudar a suavizar  las diferencias diarias y capturar tendencias a corto y largo plazo
+    # Nos ayudara a destacar tendencias
+    #Ejemplo 
+     #     Día	Temperatura	Promedio Móvil (3 días)
+     # 1	20°C	20°C (solo un dato)
+     # 2	22°C	(20+22)/2 = 21°C
+     # 3	24°C	(20+22+24)/3 = 22°C
+     # 4	23°C	(22+24+23)/3 = 23°C
+     # 5	25°C	(24+23+25)/3 = 24°C
     for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]:
         data[f"{col}_rolling_30"] = data[col].rolling(window=30, min_periods=1).mean()
         data[f"{col}_rolling_90"] = data[col].rolling(window=90, min_periods=1).mean()
@@ -94,22 +120,33 @@ def preprocess_data(data):
 # Clasificación: Predicción de la variable lluvia como un valor binario.
 # Separamos las características y objetivos, y asignamos el 80% de los datos al entrenamiento y el 20% a la prueba.
 def split_data(data):
-    train_size = int(len(data) * 0.8)
+    train_size = int(len(data) * 0.8) #Nos define cuantas columnas usaremos para el entrenamiento
 
+
+    #paso1: definimos las columas que usaremos 
     feature_columns = [f"{col}_lag{lag}" for lag in range(1, MAX_LAGS  + 1) for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]]
+    #Agregamos las variables ciclicas 
     feature_columns += ["sin_dayofyear", "cos_dayofyear"]
+    #agregamos las variable moviles
     feature_columns += [f"{col}_rolling_30" for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]]
     feature_columns += [f"{col}_rolling_90" for col in ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]]
-
+    #Definimos las variables objetivos ( las que queremos predecir)
     target_columns = ["temperatura", "humedad", "presion_atmosferica", "radiacion_solar"]
-
+    #Se divide el dataset en entrenamiento y prueba
     X_reg_train, X_reg_test = data[feature_columns][:train_size], data[feature_columns][train_size:]
     Y_reg_train, Y_reg_test = data[target_columns][:train_size], data[target_columns][train_size:]
 
+    #preparamos los datos para su clasificacion
     feature_columns_clf = feature_columns + [f"lluvia_lag{lag}" for lag in range(1, MAX_LAGS  + 1)]
     X_clf_train, X_clf_test = data[feature_columns_clf][:train_size], data[feature_columns_clf][train_size:]
+    #Agregamos los lags de lluvia
     Y_clf_train, Y_clf_test = data["lluvia"][:train_size], data["lluvia"][train_size:]
-
+    #Retornamos el resultado , conjuntos de entrenamiento y prueba para regresión y clasificación.
+    #ejemplo
+#     Día	Temp_lag1	Temp_lag2	sin_day	cos_day	Temp_rolling_30	Humedad_rolling_30
+    # 1	NaN	NaN	0.017	1.000	20.5	80.0
+    # 2	20.5	NaN	0.034	0.999	21.0	81.0
+    # 3	21.0	20.5	0.051	0.998	21.2	82.5
     return X_reg_train, X_reg_test, Y_reg_train, Y_reg_test, X_clf_train, X_clf_test, Y_clf_train, Y_clf_test
 
 # Entrenamiento de modelos
